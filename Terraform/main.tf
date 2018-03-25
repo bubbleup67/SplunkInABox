@@ -36,7 +36,7 @@ resource "aws_cloudwatch_metric_alarm" "snsAlarm" {
 }
 
 
-/*
+
 resource "aws_security_group" "allow_all" {
   name        = "allow_all"
   description = "Allow all inbound traffic"
@@ -45,6 +45,12 @@ resource "aws_security_group" "allow_all" {
   ingress {
     from_port   = 22
     to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["${var.myIp}"]
+  }
+  ingress {
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["${var.myIp}"]
   }
@@ -66,7 +72,7 @@ resource "aws_instance" "example" {
   
   # Tells Terraform that this EC2 instance must be created only after the
   # S3 bucket has been created.
-  depends_on = ["aws_s3_bucket.example"]
+  # depends_on = ["aws_s3_bucket.example"]
   
   provisioner "local-exec" {
     command = "echo ${aws_instance.example.public_ip} > ip_address.txt;echo ${module.s3.id} >> ip_address.txt"
@@ -79,7 +85,36 @@ resource "aws_instance" "example" {
     connection {
       type     = "ssh"
       user     = "ec2-user"
+      private_key = "${file("/Users/bubbleup/.ssh/JR-East2.pem")}"
     }
   }
 }
-*/
+resource "aws_elb" "bar" {
+  name               = "splunk-terraform-elb"
+  availability_zones = ["us-east-2c"]
+
+  listener {
+    instance_port     = 80
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    target              = "HTTP:80/"
+    interval            = 30
+  }
+
+  instances                   = ["${aws_instance.example.id}"]
+  cross_zone_load_balancing   = true
+  idle_timeout                = 400
+  connection_draining         = true
+  connection_draining_timeout = 400
+
+  tags {
+    Name = "splunk-terraform-elb"
+  }
+}

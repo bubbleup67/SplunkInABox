@@ -1,2 +1,4 @@
 /variables.tf
 /globalVariables.tf
+/terraform.tfstate
+/terraform.tfstate.backup
